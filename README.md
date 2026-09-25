@@ -1,74 +1,49 @@
-<p align="center"><img src="https://raw.githubusercontent.com/MercuryWorkshop/scramjet/main/assets/scramjet.png" height="200"></p>
+# NebulaHub Browser
 
-<h1 align="center">Scramjet Demo</h1>
+A compact, space-themed browser interface powered by [Scramjet](https://github.com/MercuryWorkshop/scramjet). It accepts URLs or search terms, loads the destination inside a proxied iframe, and provides back, forward, reload, and home controls.
 
-The demo implementation of <a href="https://github.com/MercuryWorkshop/scramjet">Scramjet</a>, the most advanced web proxy.
+## Run locally
 
-<a href="https://github.com/MercuryWorkshop/scramjet">Scramjet</a> is an experimental interception based web proxy designed with security, developer friendliness, and performance in mind. This project is made to evade internet censorship and bypass arbitrary web browser restrictions.
+Requirements: Node.js 20 or newer and Corepack.
 
-#### Refer to <a href="https://github.com/HeyPuter/browser.js">browser.js</a> where this project will now receive updates outside of just bypassing internet censorship.
-
-## Supported Sites
-
-Scramjet has CAPTCHA support! Some of the popular websites that Scramjet supports include:
-
-- [Google](https://google.com)
-- [Twitter](https://twitter.com)
-- [Instagram](https://instagram.com)
-- [Youtube](https://youtube.com)
-- [Spotify](https://spotify.com)
-- [Discord](https://discord.com)
-- [Reddit](https://reddit.com)
-- [GeForce NOW](https://play.geforcenow.com/)
-
-Ensure you are not hosting on a datacenter IP for CAPTCHAs to work reliably along with YouTube. Heavy amounts of traffic will make some sites NOT work on a single IP. Consider rotating IPs or routing through Wireguard using a project like <a href="https://github.com/whyvl/wireproxy">wireproxy</a>.
-
-## Setup / Usage
-
-You will need Node.js 16.x (and above) and Git installed; below is an example for Debian/Ubuntu setup.
-
-```
-sudo apt update
-sudo apt upgrade
-sudo apt install curl git nginx
-
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-nvm install 20
-nvm use 20
-
-git clone https://github.com/MercuryWorkshop/Scramjet-App
-cd Scramjet-App
+```sh
+corepack pnpm install --frozen-lockfile
+corepack pnpm start
 ```
 
-Install dependencies
+Open `http://localhost:8080`. Production use requires HTTPS because the proxy registers a service worker.
 
-```
-pnpm install
-```
+## Architecture
 
-Run the server
+- Fastify serves the NebulaHub interface and Scramjet runtime assets.
+- Scramjet rewrites pages inside a service worker and displays them in an iframe.
+- BareMux and libcurl transport browser traffic over a Wisp WebSocket endpoint.
+- The same Node process hosts Wisp at `/wisp/`.
 
-```
-pnpm start
-```
+## Deploy
 
-Resources for self-hosting:
+The included `Dockerfile`, `railway.json`, and `render.yaml` support a WebSocket-capable container host.
 
-- https://github.com/nvm-sh/nvm
-- https://docs.titaniumnetwork.org/guides/nginx/
-- https://docs.titaniumnetwork.org/guides/vps-hosting/
-- https://docs.titaniumnetwork.org/guides/dns-setup/
+### Railway
 
-### HTTP Transport
+Create a service from this repository. Railway detects `railway.json` and builds the Dockerfile. Generate a public domain after the first deployment.
 
-The example uses [libcurl-transport](https://github.com/MercuryWorkshop/libcurl-transport) to fetch proxied data encrypted.
+### Render
 
-You may also want to use [epoxy-transport](https://github.com/MercuryWorkshop/epoxy-transport), a different way of fetching encrypted data.
+Create a Blueprint from this repository. The included `render.yaml` creates a free Docker web service with `/health` monitoring.
 
-This example also now uses [wisp-js/server](https://www.npmjs.com/package/@mercuryworkshop/wisp-js) instead of the now outdated wisp-server-node. Please note that this can also be replaced with other wisp implementations like [wisp-server-python](https://github.com/MercuryWorkshop/wisp-server-python) which is highly recommended for production.
+## Updating
 
-See the [bare-mux](https://github.com/MercuryWorkshop/bare-mux) documentation for more information.
+Edit the files under `public/` for the interface and `src/index.js` for server settings. Push to the connected repository; Railway or Render will redeploy automatically.
+
+## Limitations
+
+- Some sites block proxies, embedded browsing, or automated traffic.
+- CAPTCHAs, OAuth sign-ins, downloads, media DRM, WebRTC, and some WebSocket-heavy applications can fail.
+- Free hosting may sleep when idle and can have bandwidth or memory limits.
+- This project is not an anonymity network. The host can see outbound destinations; do not treat it as Tor or a VPN.
+- Use only where you are authorized and follow the destination site's terms and applicable laws.
+
+## License
+
+AGPL-3.0-only. Scramjet and its related Mercury Workshop packages retain their original licenses and notices.

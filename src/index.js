@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { fileURLToPath } from "url";
+import { fileURLToPath } from "node:url";
 import { hostname } from "node:os";
 import { server as wisp, logging } from "@mercuryworkshop/wisp-js/server";
 import Fastify from "fastify";
@@ -11,86 +11,78 @@ import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 
 const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
 
-// Wisp Configuration: Refer to the documentation at https://www.npmjs.com/package/@mercuryworkshop/wisp-js
-
 logging.set_level(logging.NONE);
 Object.assign(wisp.options, {
 	allow_udp_streams: false,
-	hostname_blacklist: [/example\.com/],
-	dns_servers: ["1.1.1.3", "1.0.0.3"],
+	allow_private_ips: false,
+	allow_loopback_ips: false,
+	dns_servers: ["1.1.1.1", "1.0.0.1"],
 });
 
 const fastify = Fastify({
-	serverFactory: (handler) => {
-		return createServer()
+	logger: process.env.NODE_ENV !== "production",
+	serverFactory: (handler) =>
+		createServer()
 			.on("request", (req, res) => {
 				res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
 				res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+				res.setHeader("X-Content-Type-Options", "nosniff");
+				res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
 				handler(req, res);
 			})
 			.on("upgrade", (req, socket, head) => {
-				if (req.url.endsWith("/wisp/")) wisp.routeRequest(req, socket, head);
+				if (req.url?.endsWith("/wisp/")) wisp.routeRequest(req, socket, head);
 				else socket.end();
-			});
-	},
+			}),
 });
+
+fastify.get("/health", async () => ({
+	status: "ok",
+	service: "nebulahub-browser",
+}));
 
 fastify.register(fastifyStatic, {
 	root: publicPath,
 	decorateReply: true,
+	maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
+	immutable: false,
 });
-
 fastify.register(fastifyStatic, {
 	root: scramjetPath,
 	prefix: "/scram/",
 	decorateReply: false,
+	maxAge: "1d",
 });
-
 fastify.register(fastifyStatic, {
 	root: libcurlPath,
 	prefix: "/libcurl/",
 	decorateReply: false,
+	maxAge: "1d",
 });
-
 fastify.register(fastifyStatic, {
 	root: baremuxPath,
 	prefix: "/baremux/",
 	decorateReply: false,
+	maxAge: "1d",
 });
 
-fastify.setNotFoundHandler((res, reply) => {
-	return reply.code(404).type("text/html").sendFile("404.html");
-});
-
+fastify.setNotFoundHandler((_request, reply) =>
+	reply.code(404).type("text/html").sendFile("404.html")
+);
 fastify.server.on("listening", () => {
 	const address = fastify.server.address();
-
-	// by default we are listening on 0.0.0.0 (every interface)
-	// we just need to list a few
-	console.log("Listening on:");
-	console.log(`\thttp://localhost:${address.port}`);
-	console.log(`\thttp://${hostname()}:${address.port}`);
 	console.log(
-		`\thttp://${
-			address.family === "IPv6" ? `[${address.address}]` : address.address
-		}:${address.port}`
+		`NebulaHub Browser listening on http://${hostname()}:${address.port}`
 	);
 });
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
-
-function shutdown() {
-	console.log("SIGTERM signal received: closing HTTP server");
-	fastify.close();
+async function shutdown(signal) {
+	console.log(`${signal} received; closing server.`);
+	await fastify.close();
 	process.exit(0);
 }
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
 
-let port = parseInt(process.env.PORT || "");
-
-if (isNaN(port)) port = 8080;
-
-fastify.listen({
-	port: port,
-	host: "0.0.0.0",
-});
+const port = Number.parseInt(process.env.PORT || "8080", 10);
+await fastify.listen({ port, host: "0.0.0.0" });
