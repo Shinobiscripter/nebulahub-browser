@@ -2,6 +2,10 @@
 
 A compact, space-themed browser interface powered by [Scramjet](https://github.com/MercuryWorkshop/scramjet). It accepts URLs or search terms, loads the destination inside a proxied iframe, and provides back, forward, reload, and home controls.
 
+## Live site
+
+[Open NebulaHub Browser](https://nebulahub-browser.onrender.com)
+
 ## Run locally
 
 Requirements: Node.js 20 or newer and Corepack.
